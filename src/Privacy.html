@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('Styles') ?>
+</head>
+<body>
+<div class="wrap">
+  <div style="margin:6px 0 14px"><div class="hint" style="margin:0" id="brand"></div><h1>Privacy notice</h1></div>
+  <div class="card" id="txt" style="white-space:pre-line"></div>
+  <a class="btn ghost" id="back" href="#">Back to booking</a>
+</div>
+<script>const BOOT = <?!= boot ?>;</script>
+<?!= include('Common') ?>
+<script>
+  $('brand').textContent = C.practiceName;
+  $('back').href = C.appUrl;
+  call('getPrivacyText').then(t => { $('txt').textContent = t; }).catch(e => { $('txt').textContent = e.message; });
+</script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('Styles') ?>
+</head>
+<body>
+<div class="wrap">
+  <div style="margin:6px 0 14px"><div class="hint" style="margin:0" id="brand"></div><h1>Your booking</h1></div>
+  <div id="main"><div class="spinner"></div></div>
+</div>
+<div class="bar hidden" id="bar"><div class="inner">
+  <button class="btn ghost" id="backBtn">Back</button>
+  <button class="btn primary" id="saveBtn" disabled>Save new time</button>
+</div></div>
+
+<script>const BOOT = <?!= boot ?>;</script>
+<?!= include('Common') ?>
+<script>
+  $('brand').textContent = C.practiceName;
+  const TOKEN = BOOT.token;
+  const REASONS = ['Schedule conflict', 'Not feeling well', 'Travelling', 'Work came up', 'Family reasons', 'Other'];
+  let B = null, pick = null, pendingReason = '';
+
+  function statusPill(b) {
+    if (b.status === 'Cancelled') return '<span class="pill red">Cancelled</span>';
+    if (b.status === 'Completed') return '<span class="pill grey">Completed</span>';
+    if (b.status === 'No-show') return '<span class="pill grey">Missed</span>';
+    return '<span class="pill">Confirmed</span>';
+  }
+
+  function contactHtml() {
+    if (!C.therapistPhone) return '<p>Please contact ' + esc(C.therapistName) + ' directly.</p>';
+    return '<a class="btn primary" href="' + waLink(C.therapistPhone) + '" target="_blank">Message on WhatsApp</a>' +
+      '<a class="btn ghost" href="tel:' + esc(digits(C.therapistPhone)) + '">Call ' + esc(C.therapistPhone) + '</a>';
+  }
+
+  function render() {
+    $('bar').classList.add('hidden');
+    const b = B;
+    let h = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b>' + esc(b.firstName + ' ' + b.lastName) + '</b>' + statusPill(b) + '</div>' +
+      '<dl class="kv"><dt>When</dt><dd>' + (b.status === 'Cancelled' ? '<s>' + esc(fmtLong(b.start)) + '</s>' : esc(fmtLong(b.start))) + '</dd>' +
+      '<dt>How</dt><dd>' + (b.type === 'Online' ? 'Online · Google Meet' : 'In person') + '</dd>' +
+      (b.type === 'Online' && b.meetLink && b.status === 'Confirmed' ? '<dt>Link</dt><dd><a href="' + esc(b.meetLink) + '" target="_blank">Join Google Meet</a></dd>' : '') +
+      (b.clinicAddress ? '<dt>Where</dt><dd>' + esc(b.clinicAddress) + '</dd>' : '') +
+      '<dt>Fee</dt><dd>' + rupees(b.fee) + '</dd></dl></div>';
+    if (b.status === 'Confirmed' && !b.isPast) {
+      if (b.canChange) {
+        h += '<button class="btn ghost" id="resBtn">Reschedule</button><button class="btn ghost" id="canBtn" style="color:var(--red)">Cancel session</button>' +
+          '<p class="hint center" style="margin-top:14px">' + esc(C.policyText) + '</p>';
+      } else {
+        h += '<div class="card"><p style="margin-top:0">Your session is less than ' + C.cancelCutoffHours + ' hours away, so it can\'t be changed online. Please get in touch with ' + esc(C.therapistName) + ':</p>' + contactHtml() + '</div>';
+      }
+    } else if (b.status === 'Cancelled') {
+      h += '<a class="btn primary" href="' + esc(C.appUrl) + '">Book another time</a>';
+    }
+    $('main').innerHTML = h;
+    if ($('resBtn')) $('resBtn').onclick = () => askReason('reschedule');
+    if ($('canBtn')) $('canBtn').onclick = () => askReason('cancel');
+  }
+
+  async function askReason(kind) {
+    const html = '<h2>' + (kind === 'cancel' ? 'Cancel this session?' : 'Move this session?') + '</h2>' +
+      '<p class="sub">' + esc(fmtLong(B.start)) + '</p>' +
+      '<label class="f">Reason <span class="req">*</span></label><select id="rSel"><option value="">Choose a reason</option>' + REASONS.map(r => '<option>' + r + '</option>').join('') + '</select>' +
+      '<label class="f">Anything else? <span class="hint" id="rOpt">(optional)</span></label><textarea id="rTxt" rows="3"></textarea><div class="err" id="rErr"></div>';
+    const reason = await sheet(html, [
+      { label: kind === 'cancel' ? 'Cancel session' : 'Choose a new time', cls: kind === 'cancel' ? 'danger' : 'primary',
+        validate: bg => {
+          const s = bg.querySelector('#rSel').value, t = bg.querySelector('#rTxt').value.trim();
+          const msg = !s ? 'Please choose a reason.' : (s === 'Other' && !t ? 'Please tell us a little more.' : '');
+          bg.querySelector('#rErr').textContent = msg; return !msg;
+        },
+        collect: bg => { const s = bg.querySelector('#rSel').value, t = bg.querySelector('#rTxt').value.trim(); return s + (t ? ' — ' + t : ''); } },
+      { label: 'Keep my session', value: null },
+    ]);
+    if (!reason) return;
+    if (kind === 'cancel') {
+      $('main').innerHTML = '<div class="spinner"></div>';
+      try { B = await call('cancelBooking', TOKEN, reason); render(); toast('Cancelled. We\'ve emailed you a confirmation.'); }
+      catch (e) { render(); toast(e.message); }
+    } else { pendingReason = reason; pickNewTime(); }
+  }
+
+  async function pickNewTime() {
+    pick = null;
+    $('main').innerHTML = '<h2>Pick a new time</h2><p class="sub">Your current time stays booked until you save a new one.</p><div class="notice">' + esc(C.slotNotice) + '</div><div id="picker"><div class="spinner"></div></div><div class="err" id="pErr"></div>';
+    $('bar').classList.remove('hidden'); $('saveBtn').disabled = true;
+    try {
+      const days = await call('getRescheduleSlots', TOKEN);
+      SlotPicker($('picker'), days, s => { pick = s; $('saveBtn').disabled = !s; });
+    } catch (e) { $('picker').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+  }
+  $('backBtn').onclick = render;
+  $('saveBtn').onclick = async () => {
+    if (!pick) return;
+    busy($('saveBtn'), true, 'Saving…');
+    try {
+      const r = await call('rescheduleBooking', TOKEN, pick, pendingReason);
+      busy($('saveBtn'), false);
+      if (!r.ok) { $('pErr').textContent = r.message; pickNewTime(); return; }
+      B = r.booking; render(); toast('Moved. We\'ve emailed you the new details.');
+    } catch (e) { busy($('saveBtn'), false); $('pErr').textContent = e.message; }
+  };
+
+  call('getBooking', TOKEN).then(b => { B = b; render(); })
+    .catch(e => { $('main').innerHTML = '<div class="card">' + esc(e.message) + '</div>'; });
+</script>
+</body>
+</html>

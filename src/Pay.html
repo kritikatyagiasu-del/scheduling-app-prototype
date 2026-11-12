@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('Styles') ?>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div style="margin:6px 0 14px"><div class="hint" style="margin:0" id="brand"></div><h1>Session payment</h1></div>
+  <div id="main"><div class="spinner"></div></div>
+</div>
+<script>const BOOT = <?!= boot ?>;</script>
+<?!= include('Common') ?>
+<script>
+  $('brand').textContent = C.practiceName;
+  function render(p) {
+    if (p.payStatus === 'Paid') { $('main').innerHTML = '<div class="card center"><div class="big-tick">✓</div><h2>Paid. Thank you!</h2><p class="sub">' + esc(p.when) + '</p></div>'; return; }
+    if (!p.upiId) { $('main').innerHTML = '<div class="card">Payment details aren\'t set up yet. Please contact ' + esc(p.therapistName) + '.</div>'; return; }
+    const upi = 'upi://pay?pa=' + encodeURIComponent(p.upiId).replace(/%40/g, '@') + '&pn=' + encodeURIComponent(p.upiName) + '&am=' + Number(p.amount).toFixed(2) +
+      '&cu=INR&tn=' + encodeURIComponent(p.note);
+    const reported = p.payStatus === 'Patient says paid';
+    $('main').innerHTML =
+      '<div class="card center"><p class="sub" style="margin:0">Hi ' + esc(p.firstName) + ', for your session on</p><b>' + esc(p.when) + '</b>' +
+      '<div style="font-family:Fraunces,serif;font-size:38px;font-weight:600;margin:10px 0">' + rupees(p.amount) + '</div>' +
+      '<a class="btn primary" href="' + upi + '" target="_blank">Pay with a UPI app</a>' +
+      '<p class="hint">Opens GPay, PhonePe, Paytm or your bank app on this phone.</p></div>' +
+      '<div class="card center"><p style="margin-top:0"><b>Paying from another phone?</b> Scan this code.</p><div id="qr" style="display:inline-block;padding:10px;background:#fff"></div>' +
+      '<p style="margin-bottom:0">UPI ID: <b>' + esc(p.upiId) + '</b> <button class="link" id="copy">Copy</button></p></div>' +
+      (reported ? '<div class="card center">Thanks! We\'ve told ' + esc(p.therapistName) + ' you\'ve paid.</div>'
+        : '<button class="btn ghost" id="paid">I\'ve paid</button><p class="hint center">Lets ' + esc(p.therapistName) + ' know to look for your payment.</p>');
+    try { new QRCode($('qr'), { text: upi, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M }); } catch (e) { $('qr').textContent = ''; }
+    $('copy').onclick = () => { try { navigator.clipboard.writeText(p.upiId).then(() => toast('UPI ID copied')); } catch (e) { toast(p.upiId); } };
+    if ($('paid')) $('paid').onclick = async () => { busy($('paid'), true, 'Sending…'); try { render(await call('reportPaid', BOOT.token)); } catch (e) { busy($('paid'), false); toast(e.message); } };
+  }
+  call('getPayment', BOOT.token).then(render).catch(e => { $('main').innerHTML = '<div class="card">' + esc(e.message) + '</div>'; });
+</script>
+</body>
+</html>

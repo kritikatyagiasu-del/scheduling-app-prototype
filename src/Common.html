@@ -1,0 +1,90 @@
+<script>
+  const C = BOOT.cfg;
+  const $ = id => document.getElementById(id);
+  const IST = 'Asia/Kolkata';
+  const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const SHOW_LOCAL = LOCAL_TZ !== 'Asia/Kolkata' && LOCAL_TZ !== 'Asia/Calcutta';
+
+  function call(fn) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(e => reject(new Error(String((e && e.message) || e).replace(/^(Exception|Error):\s*/, ''))))[fn].apply(null, args);
+    });
+  }
+  function fmt(iso, opts, tz) { return new Intl.DateTimeFormat('en-IN', Object.assign({ timeZone: tz || IST }, opts)).format(new Date(iso)); }
+  function fmtTime(iso, tz) { return fmt(iso, { hour: 'numeric', minute: '2-digit' }, tz); }
+  function fmtLong(iso) { return fmt(iso, { weekday: 'long', day: 'numeric', month: 'long' }) + ', ' + fmtTime(iso) + ' IST'; }
+  function fmtShort(iso) { return fmt(iso, { weekday: 'short', day: 'numeric', month: 'short' }) + ', ' + fmtTime(iso); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function rupees(n) { return '₹' + Number(n).toLocaleString('en-IN'); }
+  function digits(s) { return String(s || '').replace(/\D/g, ''); }
+  function waLink(phone) { const d = digits(phone); return d ? 'https://wa.me/' + (d.length === 10 ? '91' + d : d) : ''; }
+
+  let toastTimer;
+  function toast(msg) {
+    let t = document.querySelector('.toast');
+    if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+    t.textContent = msg; t.classList.remove('hidden');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
+  }
+  function hideToast() { const t = document.querySelector('.toast'); if (t) t.classList.add('hidden'); }
+  function busy(el, on, label) {
+    if (!el) return;
+    if (on) { el.dataset.label = el.textContent; el.textContent = label || 'Please wait…'; el.disabled = true; }
+    else { el.textContent = el.dataset.label || el.textContent; el.disabled = false; }
+  }
+
+  /** Bottom sheet. Returns a promise resolved with the clicked button's value (or null). */
+  function sheet(html, buttons) {
+    return new Promise(resolve => {
+      const bg = document.createElement('div'); bg.className = 'sheet-bg';
+      bg.innerHTML = '<div class="sheet"><div class="grab"></div>' + html + '<div class="sheet-btns" style="margin-top:16px"></div></div>';
+      const box = bg.querySelector('.sheet-btns');
+      (buttons || []).forEach(b => {
+        const el = document.createElement('button');
+        el.className = 'btn ' + (b.cls || 'ghost'); el.textContent = b.label;
+        el.onclick = () => {
+          if (b.validate && !b.validate(bg)) return;
+          const v = b.collect ? b.collect(bg) : b.value; document.body.removeChild(bg); resolve(v);
+        };
+        box.appendChild(el);
+      });
+      bg.onclick = e => { if (e.target === bg) { document.body.removeChild(bg); resolve(null); } };
+      document.body.appendChild(bg);
+    });
+  }
+
+  /** Slot picker. days: [{date, weekday, slots[], full, closed}] */
+  function SlotPicker(host, days, onPick) {
+    const open = days.filter(d => !d.closed);
+    let sel = Math.max(0, open.findIndex(d => d.slots.length));
+    let picked = null;
+    function render() {
+      if (!open.some(d => d.slots.length)) {
+        host.innerHTML = '<div class="card center">No open times in the next few weeks. Please contact ' + esc(C.therapistName) +
+          (C.therapistPhone ? ' at <a href="tel:' + esc(C.therapistPhone) + '">' + esc(C.therapistPhone) + '</a>' : '') + '.</div>';
+        return;
+      }
+      const daysHtml = open.map((d, i) => {
+        const dt = d.date + 'T12:00:00+05:30';
+        const n = d.slots.length;
+        return '<button type="button" class="day' + (i === sel ? ' sel' : '') + '" data-i="' + i + '"' + (n ? '' : ' disabled') + '>' +
+          '<div class="dw">' + fmt(dt, { weekday: 'short' }) + '</div><div class="dn">' + fmt(dt, { day: 'numeric' }) + '</div>' +
+          '<div class="dm">' + fmt(dt, { month: 'short' }) + '</div><div class="dc">' + (n ? n + ' open' : (d.full ? 'full' : '—')) + '</div></button>';
+      }).join('');
+      const day = open[sel];
+      const slotsHtml = day.slots.map(s => '<button type="button" class="slot' + (picked === s ? ' sel' : '') + '" data-s="' + s + '">' +
+        fmtTime(s) + (SHOW_LOCAL ? '<small>' + fmt(s, { weekday: 'short', hour: 'numeric', minute: '2-digit' }, LOCAL_TZ) + ' your time</small>' : '') + '</button>').join('');
+      host.innerHTML = '<div class="days">' + daysHtml + '</div>' +
+        '<div class="hint" style="margin:-2px 0 12px">' + fmt(day.date + 'T12:00:00+05:30', { weekday: 'long', day: 'numeric', month: 'long' }) +
+        ' · times in IST' + (SHOW_LOCAL ? ' (your local time below each)' : '') + '</div>' +
+        '<div class="slots">' + slotsHtml + '</div>';
+      host.querySelectorAll('.day').forEach(b => b.onclick = () => { sel = +b.dataset.i; picked = null; onPick(null); render(); });
+      host.querySelectorAll('.slot').forEach(b => b.onclick = () => { picked = b.dataset.s; onPick(picked); render(); });
+      const selDay = host.querySelector('.day.sel'); if (selDay && selDay.scrollIntoView) selDay.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    }
+    render();
+  }
+</script>

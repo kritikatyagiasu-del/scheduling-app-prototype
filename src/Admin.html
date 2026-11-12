@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="theme-color" content="#3f6b5c">
+  <?!= include('Styles') ?>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .tile{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px}
+    .tile b{display:block;font-family:Fraunces,serif;font-size:30px;line-height:1.15}
+    .tile span{font-size:13px;color:var(--muted)}
+    .tile.hero{background:var(--sage);border-color:var(--sage);color:#fff} .tile.hero span{color:rgba(255,255,255,.85)}
+    .mini{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+    .mini div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}
+    .mini b{display:block;font-size:18px} .mini span{font-size:12px;color:var(--muted)}
+    .qrwrap{display:flex;justify-content:center;margin:6px 0 10px}
+    .qrwrap>div{padding:12px;background:#fff;border:1px solid var(--line);border-radius:14px}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;margin:6px 0 14px}
+    .icon-btn{background:#fff;border:1px solid var(--line);border-radius:12px;width:44px;height:44px;font-size:20px;cursor:pointer}
+    .stat{display:flex;gap:10px;margin-bottom:14px}
+    .stat div{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+    .stat b{font-family:Fraunces,serif;font-size:22px;display:block}
+    .stat span{font-size:12.5px;color:var(--muted)}
+    .sec{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:18px 2px 8px}
+    .bk{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px}
+    .bk.attn{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber-l)}
+    .bk .t{font-family:Fraunces,serif;font-size:19px;font-weight:600}
+    .bk .n{font-weight:700;font-size:16.5px;margin-top:2px}
+    .bk .m{color:var(--muted);font-size:14px}
+    .bk .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .bk .acts .btn{flex:1 1 auto}
+    .bk .quick{display:flex;gap:8px;margin-top:10px}
+    .bk .quick a{flex:1;text-align:center;padding:9px;border-radius:10px;background:#f3efe8;color:var(--ink);text-decoration:none;font-weight:600;font-size:14px}
+    .empty{text-align:center;color:var(--muted);padding:28px 10px;background:#fff;border:1px dashed var(--line);border-radius:16px}
+    nav.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:6}
+    nav.tabs button{flex:1;background:none;border:none;font:inherit;font-size:11.5px;font-weight:600;color:var(--muted);padding:6px 2px;cursor:pointer;position:relative}
+    nav.tabs button .i{display:block;font-size:20px;line-height:1.2;margin-bottom:1px}
+    nav.tabs button.on{color:var(--sage-d)}
+    nav.tabs button .badge{position:absolute;top:2px;left:calc(50% + 6px);background:var(--red);color:#fff;border-radius:99px;font-size:10.5px;padding:0 6px;line-height:17px}
+    .pinbox{max-width:320px;margin:12vh auto 0;text-align:center}
+    .pinbox input{text-align:center;font-size:28px;letter-spacing:10px}
+    .log{white-space:pre-line;font-size:12.5px;color:var(--muted);margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+  </style>
+</head>
+<body>
+<!-- PIN -->
+<div class="wrap" id="lock">
+  <div class="pinbox">
+    <div class="hint" id="brand"></div>
+    <h1 style="margin-bottom:6px">Bookings</h1>
+    <p class="sub">Enter your PIN</p>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="8">
+    <label class="check" style="text-align:left"><input type="checkbox" id="remember" checked><span>Keep me signed in on this phone</span></label>
+    <div class="err" id="pinErr"></div>
+    <button class="btn primary" id="unlock" style="margin-top:14px">Open</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="wrap hidden" id="app" style="padding-bottom:100px">
+  <div class="top">
+    <div><div class="hint" style="margin:0" id="hello"></div><h1 id="tabTitle">Today</h1></div>
+    <button class="icon-btn" id="refresh" aria-label="Refresh">↻</button>
+  </div>
+  <div id="view"><div class="spinner"></div></div>
+  <p class="center" style="margin-top:28px"><button class="link" id="signout">Sign out on this phone</button></p>
+</div>
+
+<nav class="tabs hidden" id="tabs">
+  <button data-t="today" class="on"><span class="i">☀︎</span>Today</button>
+  <button data-t="upcoming"><span class="i">🗓</span>Upcoming</button>
+  <button data-t="payments"><span class="i">₹</span>Payments</button>
+  <button data-t="stats"><span class="i">📊</span>Insights</button>
+  <button data-t="cancelled"><span class="i">✕</span>Cancelled</button>
+  <button data-t="block"><span class="i">⛔︎</span>Block</button>
+</nav>
+
+<script>const BOOT = <?!= boot ?>;</script>
+<?!= include('Common') ?>
+<script>
+  $('brand').textContent = C.practiceName;
+  let PIN = null, D = null, TAB = 'today', STATS = null, MONTH = null;
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } }, del(k) { try { localStorage.removeItem(k); } catch (e) { } } };
+
+  // ---------- sign in ----------
+  async function unlock(pin, silent) {
+    busy($('unlock'), true, 'Opening…');
+    try {
+      await call('adminLogin', pin);
+      PIN = pin; if ($('remember').checked) store.set('bk_pin', pin);
+      $('lock').classList.add('hidden'); $('app').classList.remove('hidden'); $('tabs').classList.remove('hidden');
+      load();
+    } catch (e) { if (!silent) $('pinErr').textContent = e.message; store.del('bk_pin'); }
+    busy($('unlock'), false);
+  }
+  $('unlock').onclick = () => unlock($('pin').value.trim());
+  $('pin').onkeydown = e => { if (e.key === 'Enter') $('unlock').click(); };
+  $('signout').onclick = () => { store.del('bk_pin'); location.reload(); };
+  const saved = store.get('bk_pin'); if (saved) unlock(saved, true);
+
+  // ---------- data ----------
+  async function load() {
+    $('view').innerHTML = '<div class="spinner"></div>';
+    STATS = null;
+    try { D = await call('adminData', PIN); paint(); } catch (e) { $('view').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; }
+  }
+  $('refresh').onclick = load;
+  document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+    TAB = b.dataset.t; document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b)); paint(); window.scrollTo(0, 0);
+  });
+
+  function greet() { const h = +fmt(new Date().toISOString(), { hour: 'numeric', hour12: false }); return (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + ', ' + (D ? D.therapistName : ''); }
+
+  function badges() {
+    const set = (t, n) => { const b = document.querySelector('#tabs [data-t="' + t + '"]'); let s = b.querySelector('.badge'); if (!n) { if (s) s.remove(); return; } if (!s) { s = document.createElement('span'); s.className = 'badge'; b.appendChild(s); } s.textContent = n; };
+    set('today', D.toClose.length); set('payments', D.payments.length);
+  }
+
+  function pills(r) {
+    const st = { 'Confirmed': '', 'Completed': ' grey', 'No-show': ' red', 'Cancelled': ' red' }[r.status] || '';
+    let h = '<span class="pill' + st + '">' + esc(r.status === 'Confirmed' ? (r.type === 'Online' ? 'Online' : 'In person') : r.status) + '</span> ';
+    if (r.status !== 'Confirmed') h += '<span class="pill grey">' + esc(r.type === 'Online' ? 'Online' : 'In person') + '</span> ';
+    if (r.payStatus === 'Due') h += '<span class="pill amber">Payment due</span>';
+    if (r.payStatus === 'Patient says paid') h += '<span class="pill amber">Says paid, check UPI</span>';
+    if (r.payStatus === 'Paid') h += '<span class="pill">Paid · ' + esc(r.payMethod) + '</span>';
+    return h;
+  }
+
+  function card(r, mode) {
+    const started = new Date(r.start).getTime() <= Date.now();
+    const soon = !started && new Date(r.start).getTime() - Date.now() < 3 * 3600000;
+    let acts = '';
+    if (mode === 'payments') {
+      acts = '<button class="btn primary small" data-a="paid_upi">Received on UPI</button>' +
+        '<button class="btn ghost small" data-a="qr">Show QR</button>' +
+        (r.type === 'In-person' ? '<button class="btn ghost small" data-a="paid_cash">Paid in cash</button>' : '') +
+        '<button class="btn ghost small" data-a="resend_upi">Email pay link</button>';
+    } else if (r.status === 'Confirmed' && started) {
+      acts = '<button class="btn primary small" data-a="done">Session done</button><button class="btn ghost small" data-a="noshow">Didn\'t come</button>';
+    } else if (r.status === 'Confirmed') {
+      if (r.type === 'Online' && r.meetLink && soon) acts += '<a class="btn primary small" href="' + esc(r.meetLink) + '" target="_blank">Join Meet</a>';
+      acts += '<button class="btn ghost small" data-a="cancel">Cancel</button>';
+    }
+    const when = mode === 'upcoming' || mode === 'payments' || mode === 'cancelled' || mode === 'toClose' ? fmtShort(r.start) : fmtTime(r.start);
+    return '<div class="bk' + (mode === 'toClose' ? ' attn' : '') + '" data-id="' + esc(r.id) + '">' +
+      '<div style="display:flex;justify-content:space-between;gap:8px"><div class="t">' + esc(when) + '</div><div>' + pills(r) + '</div></div>' +
+      '<div class="n">' + esc(r.name) + '</div><div class="m">' + esc(r.city || '') + (r.payStatus === 'Due' || mode === 'payments' ? ' · ' + rupees(r.fee) : '') + '</div>' +
+      (r.cancelReason ? '<div class="m" style="margin-top:6px"><b>Reason:</b> ' + esc(r.cancelReason) + '</div>' : '') +
+      '<div class="quick"><a href="tel:' + esc(digits(r.phone)) + '">Call</a><a href="' + esc(waLink(r.phone)) + '" target="_blank">WhatsApp</a><a href="mailto:' + esc(r.email) + '">Email</a></div>' +
+      (acts ? '<div class="acts">' + acts + '</div>' : '') +
+      (r.changeLog && mode === 'cancelled' ? '<div class="log">' + esc(r.changeLog.split('\n').map(l => l.replace(/^\S+\s/, '')).join('\n')) + '</div>' : '') +
+      '</div>';
+  }
+
+  function list(rows, mode, empty) { return rows.length ? rows.map(r => card(r, mode)).join('') : '<div class="empty">' + empty + '</div>'; }
+
+  function paint() {
+    if (!D) return;
+    $('hello').textContent = greet(); badges();
+    const titles = { today: 'Today', upcoming: 'Upcoming', payments: 'Payments', stats: 'Insights', cancelled: 'Cancelled', block: 'Block time' };
+    $('tabTitle').textContent = titles[TAB];
+    let h = '';
+    if (TAB === 'today') {
+      h += '<div class="stat"><div><b>' + D.today.length + '</b><span>today</span></div><div><b>' + D.upcoming.length + '</b><span>upcoming</span></div><div><b>' + rupees(D.paidThisMonth) + '</b><span>received this month</span></div></div>';
+      if (D.toClose.length) h += '<div class="sec">Needs updating</div>' + list(D.toClose, 'toClose', '');
+      h += '<div class="sec">' + fmt(new Date().toISOString(), { weekday: 'long', day: 'numeric', month: 'long' }) + '</div>' + list(D.today, 'today', 'No sessions today. Enjoy the day ✿');
+    } else if (TAB === 'upcoming') {
+      h += list(D.upcoming, 'upcoming', 'No upcoming sessions yet.');
+    } else if (TAB === 'payments') {
+      h += '<p class="sub">Sessions where a UPI request went out but you haven\'t marked the payment received yet.</p>' + list(D.payments, 'payments', 'All payments are in 🎉');
+    } else if (TAB === 'cancelled') {
+      h += '<p class="sub">Last 45 days. Patients\' reasons are shown on each.</p>' + list(D.cancelled, 'cancelled', 'No cancellations.');
+    } else if (TAB === 'block') {
+      h += blockForm();
+    } else if (TAB === 'stats') {
+      h += '<div id="stats"><div class="spinner"></div></div>';
+    }
+    $('view').innerHTML = h;
+    $('view').querySelectorAll('[data-a]').forEach(b => b.onclick = () => act(b.closest('.bk').dataset.id, b.dataset.a));
+    if (TAB === 'block') wireBlock();
+    if (TAB === 'stats') showStats();
+  }
+
+  function find(id) { return [].concat(D.today, D.upcoming, D.toClose, D.payments, D.cancelled, D.history).find(r => r.id === id); }
+
+  async function act(id, a) {
+    const r = find(id);
+    let action = a, note = '';
+    if (a === 'qr') { showQr(r, false); return; }
+    if (a === 'done') {
+      const first = esc(r.name.split(' ')[0]);
+      const btns = r.type === 'In-person'
+        ? [{ label: 'Done. Show UPI QR to scan', cls: 'primary', value: 'completed_upi_qr' }, { label: 'Done. Paid in cash', cls: 'ghost', value: 'completed_cash' }]
+        : [{ label: 'Done. Send UPI request', cls: 'primary', value: 'completed_upi' }];
+      btns.push({ label: 'Not yet', value: null });
+      action = await sheet('<h2>' + esc(r.name) + '</h2><p class="sub">' + esc(fmtShort(r.start)) + ' · ' + rupees(r.fee) + '</p>' +
+        (r.type === 'In-person'
+          ? '<p>Show ' + first + ' a UPI QR code on your phone to scan, or record a cash payment.</p>'
+          : '<p>We\'ll email ' + first + ' a UPI payment link, and show you the QR code too in case you want to share it.</p>'), btns);
+    } else if (a === 'noshow') {
+      action = await sheet('<h2>Mark as no-show?</h2><p class="sub">' + esc(r.name) + ' · ' + esc(fmtShort(r.start)) + '</p>', [{ label: 'Yes, they didn\'t come', cls: 'danger', value: 'noshow' }, { label: 'Back', value: null }]);
+    } else if (a === 'cancel') {
+      const res = await sheet('<h2>Cancel this session?</h2><p class="sub">' + esc(r.name) + ' · ' + esc(fmtShort(r.start)) + '</p><p>We\'ll email ' + esc(r.name.split(' ')[0]) + ' that it\'s cancelled.</p>' +
+        '<label class="f">Note for your records (optional)</label><input id="cNote">',
+        [{ label: 'Cancel session', cls: 'danger', collect: bg => ({ v: 'cancel', n: bg.querySelector('#cNote').value.trim() }) }, { label: 'Keep it', value: null }]);
+      action = res && res.v; note = res && res.n;
+    } else if (a === 'resend_upi') {
+      action = await sheet('<h2>Send a payment reminder?</h2><p class="sub">' + esc(r.name) + ' · ' + rupees(r.fee) + '</p>', [{ label: 'Send reminder email', cls: 'primary', value: 'resend_upi' }, { label: 'Back', value: null }]);
+    }
+    if (!action) return;
+    try {
+      toast('Saving…');
+      D = await call('adminAction', PIN, id, action, note || '');
+      hideToast();
+      STATS = null;
+      paint();
+      if (action === 'completed_upi' || action === 'completed_upi_qr') { showQr(r, action === 'completed_upi'); return; }
+      toast({ completed_upi: 'Done. Payment request sent.', completed_cash: 'Done. Cash payment recorded.', paid_upi: 'Marked as paid.', paid_cash: 'Marked as paid in cash.', resend_upi: 'Reminder sent.', noshow: 'Marked as no-show.', cancel: 'Cancelled and patient emailed.' }[action] || 'Saved');
+    } catch (e) { toast(e.message); }
+  }
+
+  // ---------- UPI QR on her screen ----------
+  async function showQr(r, emailed) {
+    if (!D.upiId) { await sheet('<h2>UPI ID missing</h2><p>Add your UPI ID in the <b>Settings</b> tab of the Google Sheet (row "upiId"), then try again.</p>', [{ label: 'OK', value: null }]); return; }
+    const upi = 'upi://pay?pa=' + encodeURIComponent(D.upiId).replace(/%40/g, '@') + '&pn=' + encodeURIComponent(D.upiName || D.therapistName) +
+      '&am=' + Number(r.fee).toFixed(2) + '&cu=INR&tn=' + encodeURIComponent('Session ' + r.id);
+    const p = sheet('<h2 class="center">Scan to pay ' + rupees(r.fee) + '</h2><p class="sub center">' + esc(r.name) + ' · ' + esc(fmtShort(r.start)) + '</p>' +
+      '<div class="qrwrap"><div id="qrBox"></div></div><p class="center" style="margin:0">UPI ID: <b>' + esc(D.upiId) + '</b></p>' +
+      '<p class="hint center">Any UPI app can scan this: GPay, PhonePe, Paytm or a bank app.' + (emailed ? ' We\'ve also emailed the payment link.' : '') + '</p>',
+      [{ label: 'Payment received', cls: 'primary', value: 'paid_upi' }, { label: 'They\'ll pay later', value: null }]);
+    try { new QRCode(document.getElementById('qrBox'), { text: upi, width: 230, height: 230, correctLevel: QRCode.CorrectLevel.M }); }
+    catch (e) { document.getElementById('qrBox').textContent = 'QR could not load. Share the UPI ID instead.'; }
+    const v = await p;
+    if (v === 'paid_upi') {
+      try { D = await call('adminAction', PIN, r.id, 'paid_upi', ''); STATS = null; paint(); toast('Marked as paid.'); } catch (e) { toast(e.message); }
+    } else { paint(); toast('Saved. It\'s in Payments until it\'s paid.'); }
+  }
+
+  // ---------- insights ----------
+  async function showStats() {
+    try {
+      if (!STATS) STATS = await call('adminStats', PIN);
+      if (!MONTH || !STATS.months.some(m => m.month === MONTH)) MONTH = STATS.current;
+      const m = STATS.months.find(x => x.month === MONTH);
+      const opts = STATS.months.map(x => '<option value="' + x.month + '"' + (x.month === MONTH ? ' selected' : '') + '>' + esc(x.label) + (x.month === STATS.current ? ' (this month)' : '') + '</option>').join('');
+      $('stats').innerHTML = '<select id="mSel" style="margin-bottom:12px">' + opts + '</select>' +
+        '<div class="tiles">' +
+        '<div class="tile"><b>' + m.totalPatients + '</b><span>Total patients</span></div>' +
+        '<div class="tile hero"><b>' + rupees(m.earned) + '</b><span>Earned' + (m.month === STATS.current ? ' so far' : '') + '</span></div>' +
+        '<div class="tile"><b>' + m.newPatients + '</b><span>New patients</span></div>' +
+        '<div class="tile"><b>' + m.returning + '</b><span>Returning patients</span></div></div>' +
+        '<div class="sec">Sessions</div><div class="mini">' +
+        '<div><b>' + m.completed + '</b><span>Completed</span></div><div><b>' + m.noShows + '</b><span>No-shows</span></div><div><b>' + m.cancelled + '</b><span>Cancelled</span></div>' +
+        (m.toMark ? '<div><b>' + m.toMark + '</b><span>' + (m.month >= STATS.current ? 'Upcoming / to mark' : 'Not marked yet') + '</span></div>' : '') +
+        '</div><div class="sec">Money</div><div class="mini">' +
+        '<div><b>' + rupees(m.upi) + '</b><span>By UPI</span></div><div><b>' + rupees(m.cash) + '</b><span>In cash</span></div><div><b>' + rupees(m.due) + '</b><span>Still due</span></div></div>' +
+        '<p class="hint">Total patients: everyone with at least one session up to the end of this month. New: first-ever session this month. ' +
+        'Returning: had a session before. Earned: payments marked received this month.</p>';
+      $('mSel').onchange = () => { MONTH = $('mSel').value; showStats(); };
+    } catch (e) { $('stats').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; }
+  }
+
+  // ---------- block time ----------
+  function blockForm() {
+    const today = fmt(new Date().toISOString(), { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-');
+    return '<div class="card"><p class="sub" style="margin-top:0">Blocked time can\'t be booked. You can also just add an event in your Google Calendar app.</p>' +
+      '<label class="f" for="bDate">Date</label><input type="date" id="bDate" value="' + today + '" min="' + today + '">' +
+      '<label class="check"><input type="checkbox" id="bAll" checked><span>Whole day</span></label>' +
+      '<div class="row hidden" id="bTimes"><div><label class="f" for="bFrom">From</label><input type="time" id="bFrom" value="10:00"></div><div><label class="f" for="bTo">To</label><input type="time" id="bTo" value="13:00"></div></div>' +
+      '<label class="f" for="bLabel">Note (only you see this)</label><input id="bLabel" placeholder="e.g. Travel">' +
+      '<div class="err" id="bErr"></div><button class="btn primary" id="bSave" style="margin-top:16px">Block this time</button></div>' +
+      '<div class="sec">Blocked in the next 60 days</div><div id="blocks"><div class="spinner"></div></div>';
+  }
+  async function wireBlock() {
+    $('bAll').onchange = () => $('bTimes').classList.toggle('hidden', $('bAll').checked);
+    $('bSave').onclick = async () => {
+      $('bErr').textContent = '';
+      busy($('bSave'), true, 'Blocking…');
+      try {
+        await call('adminBlock', PIN, $('bDate').value, $('bAll').checked ? '' : $('bFrom').value, $('bAll').checked ? '' : $('bTo').value, $('bLabel').value.trim());
+        toast('Blocked'); $('bLabel').value = ''; showBlocks();
+      } catch (e) { $('bErr').textContent = e.message; }
+      busy($('bSave'), false);
+    };
+    showBlocks();
+  }
+  async function showBlocks(listData) {
+    try {
+      const items = listData || await call('adminBlocks', PIN);
+      $('blocks').innerHTML = items.length ? items.map(b => '<div class="bk" style="display:flex;justify-content:space-between;align-items:center"><div><div class="n" style="margin:0">' +
+        esc(b.allDay ? fmt(b.start + 'T12:00:00+05:30', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · all day' : fmtShort(b.start) + ' – ' + fmtTime(b.end)) +
+        '</div><div class="m">' + esc(b.summary.replace(/^Blocked( · )?/, '') || 'Blocked') + '</div></div><button class="btn ghost small" data-ev="' + esc(b.id) + '">Remove</button></div>').join('')
+        : '<div class="empty">Nothing blocked.</div>';
+      $('blocks').querySelectorAll('[data-ev]').forEach(btn => btn.onclick = async () => {
+        busy(btn, true, '…');
+        try { showBlocks(await call('adminUnblock', PIN, btn.dataset.ev)); toast('Removed'); } catch (e) { toast(e.message); busy(btn, false); }
+      });
+    } catch (e) { $('blocks').innerHTML = '<div class="empty">' + esc(e.message) + '</div>'; }
+  }
+</script>
+</body>
+</html>

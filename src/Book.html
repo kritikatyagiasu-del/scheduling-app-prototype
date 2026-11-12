@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('Styles') ?>
+</head>
+<body>
+<div class="wrap">
+  <div style="margin:6px 0 14px">
+    <div class="hint" style="margin:0" id="brand"></div>
+    <h1 id="title">Book a session</h1>
+  </div>
+  <div class="progress hidden" id="progress"><i></i><i></i><i></i></div>
+
+  <!-- START -->
+  <section id="sStart">
+    <p class="sub">Choose a time that suits you. You'll get a confirmation by email, and reminders before your session.</p>
+    <button class="btn primary" id="goNew">Book my first session</button>
+    <button class="btn ghost" id="goBack">I've booked before</button>
+  </section>
+
+  <!-- RETURNING LOGIN -->
+  <section id="sLogin" class="hidden">
+    <div class="card">
+      <h2>Welcome back</h2>
+      <p class="sub">Enter the email or phone number you used last time. We'll email you a 6-digit code.</p>
+      <div id="loginStep1">
+        <label class="f" for="ident">Email or phone number</label>
+        <input id="ident" autocomplete="email" placeholder="you@example.com or 98765 43210">
+        <div class="err" id="identErr"></div>
+      </div>
+      <div id="loginStep2" class="hidden">
+        <p class="hint" id="codeSent"></p>
+        <label class="f" for="code">6-digit code</label>
+        <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" style="letter-spacing:6px;font-size:22px;text-align:center">
+        <div class="err" id="codeErr"></div>
+        <p class="hint">No email? Check spam, or <button class="link" id="resend">send a new code</button>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1. DETAILS -->
+  <section id="s1" class="hidden">
+    <div class="card hidden" id="welcomeCard">
+      <h2 id="welcomeName"></h2>
+      <p class="sub" style="margin:0" id="welcomeLine"></p>
+      <button class="link" id="editDetails" style="margin-top:8px">Edit my details</button>
+    </div>
+    <div class="card" id="detailsCard">
+      <h2>Your details</h2>
+      <p class="sub">So we can confirm your booking and send reminders.</p>
+      <div class="row">
+        <div><label class="f" for="first">First name <span class="req">*</span></label><input id="first" autocomplete="given-name"><div class="err"></div></div>
+        <div><label class="f" for="last">Last name <span class="req">*</span></label><input id="last" autocomplete="family-name"><div class="err"></div></div>
+      </div>
+      <label class="f" for="country">Country <span class="req">*</span></label>
+      <select id="country" autocomplete="country-name"></select><div class="err"></div>
+      <label class="f" for="stateSel">State <span class="req">*</span></label>
+      <select id="stateSel"></select><input id="stateTxt" class="hidden" autocomplete="address-level1"><div class="err"></div>
+      <label class="f" for="city">City <span class="req">*</span></label>
+      <input id="city" list="cities" autocomplete="address-level2"><datalist id="cities"></datalist><div class="err"></div>
+      <label class="f" for="phone">Mobile number <span class="req">*</span></label>
+      <div class="row"><span class="cc" id="cc">+91</span><input id="phone" type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="98765 43210" style="flex:1"></div>
+      <div class="err"></div>
+      <label class="f" for="email">Email <span class="req">*</span></label>
+      <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"><div class="err"></div>
+      <label class="check" id="privacyWrap"><input type="checkbox" id="privacy">
+        <span>I agree to the <a href="#" id="privacyLink" target="_blank">privacy notice</a> and to my details being used to book and manage my sessions. <span class="req">*</span></span></label>
+      <div class="err" id="privacyErr"></div>
+    </div>
+  </section>
+
+  <!-- 2. SESSION TYPE + FEE -->
+  <section id="s2" class="hidden">
+    <h2>How would you like to meet?</h2>
+    <p class="sub" id="typeHint"></p>
+    <div class="choice" data-type="In-person"><div class="ic">📍</div><div><b>In person</b><small id="clinicLine">At the clinic</small></div></div>
+    <div class="choice" data-type="Online"><div class="ic">💻</div><div><b>Online</b><small>Google Meet video call. The link comes by email</small></div></div>
+    <div class="err" id="typeErr"></div>
+    <div class="fee" style="margin-top:18px"><div><div class="hint" style="margin:0">Session fee</div><div class="amt" id="feeAmt"></div></div><span class="pill">Pay after the session</span></div>
+    <label class="check"><input type="checkbox" id="ack"><span>I understand the session fee is <b id="feeAmt2"></b>. <span class="req">*</span></span></label>
+    <div class="err" id="ackErr"></div>
+  </section>
+
+  <!-- 3. TIME -->
+  <section id="s3" class="hidden">
+    <h2>Pick a time</h2>
+    <div class="notice" id="slotNotice"></div>
+    <div id="picker"><div class="spinner"></div></div>
+    <div class="err" id="slotErr"></div>
+  </section>
+
+  <!-- 4. DONE -->
+  <section id="s4" class="hidden">
+    <div class="center"><div class="big-tick">✓</div><h2>You're booked</h2><p class="sub" id="doneSub"></p></div>
+    <div class="card"><dl class="kv" id="doneKv"></dl></div>
+    <div class="card" style="font-size:14.5px" id="donePolicy"></div>
+    <a class="btn ghost" id="manageLink" href="#">Reschedule or cancel</a>
+  </section>
+</div>
+
+<div class="bar hidden" id="bar"><div class="inner">
+  <button class="btn ghost" id="backBtn">Back</button>
+  <button class="btn primary" id="nextBtn">Continue</button>
+</div></div>
+
+<script>const BOOT = <?!= boot ?>;</script>
+<?!= include('Common') ?>
+<script>
+  const COUNTRIES = [['India', '+91'], ['United States', '+1'], ['United Kingdom', '+44'], ['United Arab Emirates', '+971'], ['Singapore', '+65'], ['Canada', '+1'], ['Australia', '+61'], ['Other', '+']];
+  const IN_STATES = ['Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chandigarh', 'Chhattisgarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir', 'Jharkhand', 'Karnataka', 'Kerala', 'Ladakh', 'Lakshadweep', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Puducherry', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'];
+  const CITIES = ['Ahmedabad', 'Bengaluru', 'Chandigarh', 'Chennai', 'Delhi', 'Faridabad', 'Ghaziabad', 'Greater Noida', 'Gurugram', 'Hyderabad', 'Jaipur', 'Kolkata', 'Lucknow', 'Mumbai', 'New Delhi', 'Noida', 'Pune'];
+
+  const S = { step: 'start', session: null, patient: null, type: '', pick: null, returning: false };
+
+  // ---------- init ----------
+  $('brand').textContent = C.practiceName;
+  $('privacyLink').href = C.appUrl + '?page=privacy';
+  $('feeAmt').textContent = rupees(C.fee); $('feeAmt2').textContent = rupees(C.fee);
+  $('slotNotice').textContent = C.slotNotice;
+  if (C.clinicAddress) $('clinicLine').textContent = C.clinicAddress;
+  COUNTRIES.forEach(([n]) => $('country').add(new Option(n, n)));
+  $('stateSel').add(new Option('Select state', ''));
+  IN_STATES.forEach(s => $('stateSel').add(new Option(s, s)));
+  CITIES.forEach(c => { const o = document.createElement('option'); o.value = c; $('cities').appendChild(o); });
+  $('country').onchange = () => {
+    const india = $('country').value === 'India';
+    $('stateSel').classList.toggle('hidden', !india); $('stateTxt').classList.toggle('hidden', india);
+    $('cc').textContent = COUNTRIES.find(c => c[0] === $('country').value)[1];
+  };
+
+  document.querySelectorAll('#s1 input, #s1 select').forEach(el => {
+    const clear = () => {
+      el.classList.remove('invalid');
+      let n = el.nextElementSibling; while (n && !(n.classList && n.classList.contains('err'))) n = n.nextElementSibling;
+      if (!n && el.id === 'phone') n = el.parentElement.nextElementSibling;
+      if (n && n.classList.contains('err')) n.textContent = '';
+    };
+    el.addEventListener('input', clear); el.addEventListener('change', clear);
+  });
+  $('privacy').addEventListener('change', () => { if ($('privacy').checked) $('privacyErr').textContent = ''; });
+  $('ack').addEventListener('change', () => { if ($('ack').checked) $('ackErr').textContent = ''; });
+
+  // ---------- navigation ----------
+  const ORDER = ['s1', 's2', 's3'];
+  function show(id) {
+    ['sStart', 'sLogin', 's1', 's2', 's3', 's4'].forEach(s => $(s).classList.toggle('hidden', s !== id));
+    S.step = id;
+    const idx = ORDER.indexOf(id);
+    $('progress').classList.toggle('hidden', idx < 0);
+    document.querySelectorAll('#progress i').forEach((el, i) => el.classList.toggle('on', i <= idx));
+    $('bar').classList.toggle('hidden', id === 'sStart' || id === 's4');
+    $('nextBtn').disabled = false;
+    $('nextBtn').textContent = { sLogin: $('loginStep2').classList.contains('hidden') ? 'Send code' : 'Continue', s1: 'Continue', s2: 'Choose a time', s3: 'Book this time' }[id] || 'Continue';
+    $('title').textContent = id === 's4' ? 'All set' : 'Book a session';
+    if (id === 's3') $('nextBtn').disabled = !S.pick;
+    window.scrollTo(0, 0);
+  }
+  $('goNew').onclick = () => { S.returning = false; $('welcomeCard').classList.add('hidden'); $('detailsCard').classList.remove('hidden'); show('s1'); };
+  $('goBack').onclick = () => { S.returning = true; show('sLogin'); setTimeout(() => $('ident').focus(), 50); };
+  $('backBtn').onclick = () => {
+    const back = { sLogin: 'sStart', s1: S.returning ? 'sStart' : 'sStart', s2: 's1', s3: 's2' }[S.step];
+    if (S.step === 'sLogin' && !$('loginStep2').classList.contains('hidden')) { $('loginStep2').classList.add('hidden'); $('loginStep1').classList.remove('hidden'); show('sLogin'); return; }
+    show(back || 'sStart');
+  };
+  $('nextBtn').onclick = () => ({ sLogin: loginNext, s1: detailsNext, s2: typeNext, s3: bookNow }[S.step] || (() => {}))();
+
+  // ---------- returning login ----------
+  async function sendCode() {
+    const v = $('ident').value.trim();
+    $('identErr').textContent = '';
+    if (!v || (v.indexOf('@') < 0 && digits(v).length < 8)) { $('identErr').textContent = 'Enter your email or mobile number.'; return false; }
+    busy($('nextBtn'), true, 'Sending…');
+    try {
+      await call('startLogin', v);
+      $('codeSent').textContent = 'If we have your details, we\'ve emailed a code to the address you booked with.';
+      $('loginStep1').classList.add('hidden'); $('loginStep2').classList.remove('hidden');
+      busy($('nextBtn'), false); $('nextBtn').textContent = 'Continue';
+      setTimeout(() => $('code').focus(), 50);
+      return true;
+    } catch (e) { busy($('nextBtn'), false); $('identErr').textContent = e.message; return false; }
+  }
+  async function loginNext() {
+    if ($('loginStep2').classList.contains('hidden')) return sendCode();
+    const code = digits($('code').value);
+    $('codeErr').textContent = '';
+    if (code.length !== 6) { $('codeErr').textContent = 'Enter the 6-digit code from your email.'; return; }
+    busy($('nextBtn'), true, 'Checking…');
+    try {
+      const r = await call('verifyLogin', $('ident').value.trim(), code);
+      busy($('nextBtn'), false);
+      S.session = r.session; fillDetails(r.patient);
+      $('welcomeName').textContent = 'Welcome back, ' + r.patient.firstName;
+      $('welcomeLine').textContent = r.patient.email + ' · ' + r.patient.phone;
+      $('welcomeCard').classList.remove('hidden'); $('detailsCard').classList.add('hidden');
+      $('privacy').checked = true;
+      show('s1');
+    } catch (e) { busy($('nextBtn'), false); $('codeErr').textContent = e.message; }
+  }
+  $('resend').onclick = () => { $('loginStep2').classList.add('hidden'); $('loginStep1').classList.remove('hidden'); sendCode(); };
+  $('editDetails').onclick = () => { $('detailsCard').classList.remove('hidden'); $('privacyWrap').classList.add('hidden'); };
+
+  function fillDetails(p) {
+    $('first').value = p.firstName; $('last').value = p.lastName; $('city').value = p.city; $('email').value = p.email;
+    const ctry = COUNTRIES.some(c => c[0] === p.country) ? p.country : 'Other';
+    $('country').value = ctry; $('country').onchange();
+    if (ctry === 'India') $('stateSel').value = p.state; else $('stateTxt').value = p.state;
+    const ph = String(p.phone || ''); const m = ph.match(/^(\+\d{1,3})\s*(.*)$/);
+    $('phone').value = m ? m[2] : ph;
+  }
+
+  // ---------- step 1 ----------
+  function setErr(el, msg) {
+    el.classList.toggle('invalid', !!msg);
+    let n = el.nextElementSibling; while (n && !n.classList.contains('err')) n = n.nextElementSibling;
+    if (!n && el.parentElement) n = el.parentElement.parentElement.querySelector(':scope > .err') || el.parentElement.nextElementSibling;
+    if (n && n.classList && n.classList.contains('err')) n.textContent = msg || '';
+    return !msg;
+  }
+  function detailsNext() {
+    const v = id => $(id).value.trim();
+    const india = $('country').value === 'India';
+    const stEl = india ? $('stateSel') : $('stateTxt');
+    const ph = digits(v('phone'));
+    let ok = true;
+    ok = setErr($('first'), v('first') ? '' : 'Please enter your first name.') && ok;
+    ok = setErr($('last'), v('last') ? '' : 'Please enter your last name.') && ok;
+    ok = setErr(stEl, stEl.value.trim() ? '' : 'Please enter your state.') && ok;
+    ok = setErr($('city'), v('city') ? '' : 'Please enter your city.') && ok;
+    const phOk = india ? /^[6-9]\d{9}$/.test(ph.slice(-10)) && (ph.length === 10 || (ph.length === 12 && ph.startsWith('91'))) : ph.length >= 6;
+    $('phone').classList.toggle('invalid', !phOk);
+    $('phone').parentElement.nextElementSibling.textContent = phOk ? '' : (india ? 'Enter a 10-digit mobile number.' : 'Enter a valid phone number.');
+    ok = phOk && ok;
+    ok = setErr($('email'), /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v('email')) ? '' : 'Enter a valid email.') && ok;
+    $('privacyErr').textContent = $('privacy').checked ? '' : 'Please agree to continue.'; ok = $('privacy').checked && ok;
+    if (!ok) {
+      if (S.returning) { $('detailsCard').classList.remove('hidden'); }
+      const bad = document.querySelector('#s1 .invalid'); if (bad) bad.scrollIntoView({ block: 'center' });
+      return;
+    }
+    S.patient = { firstName: v('first'), lastName: v('last'), country: $('country').value, state: stEl.value.trim(), city: v('city'),
+      phone: $('cc').textContent + ' ' + (india ? ph.slice(-10) : ph), email: v('email') };
+    const city = S.patient.city.toLowerCase().replace(/\s+/g, ' ');
+    if (!S.type) S.type = C.inPersonCities.indexOf(city) > -1 ? 'In-person' : 'Online';
+    $('typeHint').textContent = 'We\'ve suggested ' + (S.type === 'In-person' ? 'in person' : 'online') + ' based on your city. You can change it.';
+    paintType(); show('s2');
+  }
+
+  // ---------- step 2 ----------
+  function paintType() { document.querySelectorAll('.choice').forEach(el => el.classList.toggle('sel', el.dataset.type === S.type)); }
+  document.querySelectorAll('.choice').forEach(el => el.onclick = () => { S.type = el.dataset.type; paintType(); $('typeErr').textContent = ''; });
+  let slotsLoaded = false;
+  function typeNext() {
+    let ok = true;
+    if (!S.type) { $('typeErr').textContent = 'Please choose one.'; ok = false; }
+    $('ackErr').textContent = $('ack').checked ? '' : 'Please tick to continue.'; ok = $('ack').checked && ok;
+    if (!ok) return;
+    show('s3');
+    if (!slotsLoaded) loadSlots();
+  }
+
+  // ---------- step 3 ----------
+  async function loadSlots() {
+    $('picker').innerHTML = '<div class="spinner"></div>'; S.pick = null; $('nextBtn').disabled = true;
+    try {
+      const days = await call('getSlots');
+      slotsLoaded = true;
+      SlotPicker($('picker'), days, s => { S.pick = s; $('nextBtn').disabled = !s; $('slotErr').textContent = ''; });
+    } catch (e) { $('picker').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+  }
+  async function bookNow() {
+    if (!S.pick) return;
+    busy($('nextBtn'), true, 'Booking…'); $('backBtn').disabled = true;
+    try {
+      const r = await call('book', { session: S.session, patient: S.patient, privacy: $('privacy').checked, type: S.type, feeAck: $('ack').checked, start: S.pick });
+      busy($('nextBtn'), false); $('backBtn').disabled = false;
+      if (!r.ok) {
+        if (r.code === 'EXISTS') { await sheet('<h2>Welcome back</h2><p>' + esc(r.message) + '</p>', [{ label: 'Find my details', cls: 'primary', value: 1 }]); S.returning = true; $('ident').value = S.patient.email; show('sLogin'); return; }
+        $('slotErr').textContent = r.message; slotsLoaded = false; loadSlots(); return;
+      }
+      done(r.booking);
+    } catch (e) { busy($('nextBtn'), false); $('backBtn').disabled = false; $('slotErr').textContent = e.message; }
+  }
+
+  // ---------- done ----------
+  function done(b) {
+    $('doneSub').textContent = 'We\'ve emailed the details to ' + b.email + '.';
+    $('doneKv').innerHTML = '<dt>When</dt><dd>' + esc(fmtLong(b.start)) + '</dd>' +
+      '<dt>How</dt><dd>' + (b.type === 'Online' ? 'Online · Google Meet' + (b.meetLink ? '<br><a href="' + esc(b.meetLink) + '" target="_blank">' + esc(b.meetLink.replace('https://', '')) + '</a>' : '') : 'In person' + (b.clinicAddress ? '<br><span style="font-weight:400">' + esc(b.clinicAddress) + '</span>' : '')) + '</dd>' +
+      '<dt>Fee</dt><dd>' + rupees(b.fee) + ' · after the session</dd>';
+    $('donePolicy').textContent = C.policyText;
+    $('manageLink').href = b.manageUrl;
+    show('s4');
+  }
+
+  show('sStart');
+</script>
+</body>
+</html>
