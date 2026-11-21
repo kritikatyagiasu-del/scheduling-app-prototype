@@ -2,6 +2,9 @@
 
 A free, phone-first booking app for a solo practitioner (therapist, coach, consultant). It runs entirely on a free Google account: Google Sheets for data, Apps Script for the app, Google Calendar for availability, Google Meet for online sessions and Gmail for emails. There are no monthly fees and no server to manage.
 
+**How it was built:** with Claude as the coding assistant. I defined the users and requirements, made the design decisions and ran the tests.
+
+
 ![Patient screens](screenshots/patient.png)
 ![Therapist screens](screenshots/therapist.png)
 
@@ -42,5 +45,14 @@ screenshots/
 - **Banner:** Google shows a small "created by a Google Apps Script user" banner on the pages.
 - **Payments:** they go straight to the UPI ID, and the therapist confirms each one in the app. There's no automatic payment matching.
 
-## Privacy
-No personal data lives in this code. Patient details, settings, the admin PIN and the UPI ID are stored only in the installer's own Google Sheet. The default privacy notice is a placeholder; replace it with text reviewed by a lawyer for your country (for India, the DPDP Act).
+## Privacy and DPDP
+No personal data lives in this code. Everything below is stored only in the installer's own Google Sheet. In India, the DPDP Act's notice, consent, erasure and breach-reporting duties apply from 13 May 2027, so the open items should be closed before real patients use the app.
+
+| Area | Today | Open item |
+|---|---|---|
+| Personal data held | Name, phone, email, city, session history, payment status | Therapy bookings can reveal health context, so treat the whole Sheet as sensitive |
+| Notice and consent | Required consent tick box with a privacy notice before booking | The notice is a placeholder; replace it with text reviewed by a lawyer |
+| Retention | Kept until the practitioner deletes it | Set a retention period and remove or anonymise past patients |
+| Correction and erasure | Manual, in the Sheet | Add a request path for patients to correct or delete their data |
+| Children | No age check | Add an age question; under-18s need verifiable parental consent |
+| Access | PIN-protected admin page; data in one Google account | Turn on 2-step verification for that account |
